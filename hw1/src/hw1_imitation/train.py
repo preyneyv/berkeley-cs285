@@ -5,22 +5,23 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import numpy as np
 import torch
 import tyro
-import wandb
 from torch.utils.data import DataLoader
 
+import wandb
 from hw1_imitation.data import (
     Normalizer,
     PushtChunkDataset,
     download_pusht,
     load_pusht_zarr,
 )
-from hw1_imitation.model import build_policy, PolicyType
-from hw1_imitation.evaluation import Logger
+from hw1_imitation.evaluation import Logger, evaluate_policy
+from hw1_imitation.model import PolicyType, build_policy
 
 LOGDIR_PREFIX = "exp"
 
@@ -127,7 +128,70 @@ def run_training(config: TrainConfig) -> None:
     )
     logger = Logger(log_dir)
 
-    ### TODO: PUT YOUR MAIN TRAINING LOOP HERE ###
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=config.lr, weight_decay=config.weight_decay
+    )
+
+    @torch.compile
+    def train_step(state: torch.Tensor, action_chunk: torch.Tensor) -> torch.Tensor:
+        optimizer.zero_grad()
+        loss = model.compute_loss(state, action_chunk)
+        loss.backward()
+        optimizer.step()
+        return loss
+
+    global_step = 0
+    last_eval_step = 0
+    start_time = perf_counter()
+
+    def evaluate(step: int):
+        print("Evaluating...                  ", end="\r")
+        evaluate_policy(
+            model=model,
+            normalizer=normalizer,
+            device=device,
+            chunk_size=config.chunk_size,
+            video_size=config.video_size,
+            num_video_episodes=config.num_video_episodes,
+            flow_num_steps=config.flow_num_steps,
+            step=step,
+            logger=logger,
+        )
+
+        model.train()  # re-enter training mode after eval
+        print("Evaluation complete.           ")
+
+    model.train()
+    for epoch in range(config.num_epochs):
+        for state, action_chunk in loader:
+            state = state.to(device, non_blocking=True)
+            action_chunk = action_chunk.to(device, non_blocking=True)
+
+            loss = train_step(state, action_chunk)
+            global_step += 1
+
+            if global_step % config.log_interval == 0:
+                elapsed = perf_counter() - start_time
+                steps_per_sec = global_step / max(elapsed, 1e-8)
+                stats = {
+                    "train/loss": float(loss.item()),
+                    "train/steps_per_sec": float(steps_per_sec),
+                    "train/epoch": float(epoch),
+                }
+                logger.log(stats, step=global_step)
+                print(
+                    f"Epoch {epoch}, Step {global_step}, Loss: {loss.item():.4f}, "
+                    f"Steps/sec: {steps_per_sec:.2f}",
+                    end="\r",
+                )
+
+            if global_step % config.eval_interval == 0:
+                evaluate(global_step)
+                last_eval_step = global_step
+
+    if global_step != last_eval_step:
+        # run a final evaluation
+        evaluate(global_step)
 
     logger.dump_for_grading()
 
