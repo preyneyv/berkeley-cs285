@@ -40,3 +40,18 @@ uv run src/scripts/run.py --env_name LunarLander-v2 --ep_len 1000 --discount 0.9
 
 # Hyperparameter Tuning
 uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 100 -b 5000 -eb 1000 --exp_name pendulum
+# uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 100 -b 5000 -eb 1000 --exp_name pendulum
+
+uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 150 -b 1000 -eb 1000 --exp_name pendulum_tune1 `
+  -rtg -na --discount 0.99 -lr 0.002 
+
+
+uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 150 -b 1000 -eb 1000 `
+  -rtg -na --discount 0.99 -lr 0.003 --exp_name pendulum_tune2
+
+uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 150 -b 1000 -eb 1000 `
+  -rtg -na --use_baseline --gae_lambda 0.95 -lr 0.002 -blr 0.005 -bgs 3 `
+  --discount 0.99 --exp_name pendulum_tune3
+
+uv run src/scripts/run.py --env_name InvertedPendulum-v4 -n 180 -b 800 -eb 1000 `
+  -rtg -na --discount 0.99 -lr 0.003 --exp_name pendulum_tune4
