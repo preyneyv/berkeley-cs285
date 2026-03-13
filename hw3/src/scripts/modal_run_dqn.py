@@ -5,9 +5,11 @@ import modal
 
 from scripts.run_dqn import main
 
-
 APP_NAME = "hw3-ql"
-NETRC_PATH = Path("~/.netrc").expanduser()
+if sys.platform == "win32":
+    NETRC_PATH = Path.home() / "_netrc"
+else:
+    NETRC_PATH = Path("~/.netrc").expanduser()
 PROJECT_DIR = "/root/project"
 VOLUME_PATH = "/root/vol"
 DEFAULT_GPU = "T4"
@@ -43,7 +45,9 @@ def load_gitignore_patterns() -> list[str]:
 
 
 # Build a container image with the project's dependencies using uv.
-image = modal.Image.debian_slim().apt_install("libgl1", "libglib2.0-0", "swig").uv_sync()
+image = (
+    modal.Image.debian_slim().apt_install("libgl1", "libglib2.0-0", "swig").uv_sync()
+)
 # Copy .netrc for wandb logging.
 if NETRC_PATH.is_file():
     image = image.add_local_file(
@@ -64,7 +68,15 @@ env = {
 }
 
 
-@app.function(volumes={VOLUME_PATH: volume}, timeout=60 * 60 * 5, env=env, image=image, gpu=DEFAULT_GPU, cpu=DEFAULT_CPU, memory=DEFAULT_MEMORY)
+@app.function(
+    volumes={VOLUME_PATH: volume},
+    timeout=60 * 60 * 5,
+    env=env,
+    image=image,
+    gpu=DEFAULT_GPU,
+    cpu=DEFAULT_CPU,
+    memory=DEFAULT_MEMORY,
+)
 def hw3_dqn_remote(*args: str) -> None:
     import os
 
@@ -75,6 +87,7 @@ def hw3_dqn_remote(*args: str) -> None:
     exp_link = Path(PROJECT_DIR) / "exp"
     if exp_link.is_dir() and not exp_link.is_symlink():
         import shutil
+
         shutil.rmtree(exp_link)
     elif exp_link.exists() or exp_link.is_symlink():
         exp_link.unlink()

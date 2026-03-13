@@ -16,6 +16,8 @@ dependencies = [
     "numpy<2.0.0",
     "pyyaml>=6.0",
     "gradescope-utils>=0.5.0",
+    "jupyterlab>=4.5.6",
+    "seaborn>=0.13.2",
 ]
 
 [build-system]
@@ -23,7 +25,20 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
