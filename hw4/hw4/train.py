@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import argparse
-import json
-import time
 import gc
+import json
 import math
+import time
 from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
-from tqdm import trange, tqdm
+from tqdm import tqdm, trange
 
 from hw4.config import TrainConfig
 from hw4.models.load import load_lora_policy_model_and_tokenizer, tokenize_chat_prompts
@@ -30,7 +30,12 @@ def parse_args() -> TrainConfig:
     # Core
     ap.add_argument("--model_name", type=str, default=TrainConfig.model_name)
     ap.add_argument("--output_dir", type=str, default=TrainConfig.output_dir)
-    ap.add_argument("--task", type=str, default=TrainConfig.task, choices=["format_copy", "math_hard"])
+    ap.add_argument(
+        "--task",
+        type=str,
+        default=TrainConfig.task,
+        choices=["format_copy", "math_hard"],
+    )
     ap.add_argument("--seed", type=int, default=TrainConfig.seed)
     ap.add_argument("--steps", type=int, default=TrainConfig.steps)
 
@@ -39,14 +44,20 @@ def parse_args() -> TrainConfig:
     ap.add_argument("--group_size", type=int, default=TrainConfig.group_size)
     ap.add_argument("--min_new_tokens", type=int, default=TrainConfig.min_new_tokens)
     ap.add_argument("--max_new_tokens", type=int, default=TrainConfig.max_new_tokens)
-    ap.add_argument("--max_prompt_tokens", type=int, default=TrainConfig.max_prompt_tokens)
+    ap.add_argument(
+        "--max_prompt_tokens", type=int, default=TrainConfig.max_prompt_tokens
+    )
     ap.add_argument("--temperature", type=float, default=TrainConfig.temperature)
     ap.add_argument("--top_p", type=float, default=TrainConfig.top_p)
     ap.add_argument("--top_k", type=int, default=TrainConfig.top_k)
-    ap.add_argument("--repetition_penalty", type=float, default=TrainConfig.repetition_penalty)
+    ap.add_argument(
+        "--repetition_penalty", type=float, default=TrainConfig.repetition_penalty
+    )
 
     # RL
-    ap.add_argument("--algo", type=str, default=TrainConfig.algo, choices=["reinforce", "grpo"])
+    ap.add_argument(
+        "--algo", type=str, default=TrainConfig.algo, choices=["reinforce", "grpo"]
+    )
     ap.add_argument("--ppo_epochs", type=int, default=TrainConfig.ppo_epochs)
     ap.add_argument("--minibatch_size", type=int, default=TrainConfig.minibatch_size)
     ap.add_argument("--clip_eps", type=float, default=TrainConfig.clip_eps)
@@ -65,13 +76,17 @@ def parse_args() -> TrainConfig:
     ap.add_argument("--betas1", type=float, default=TrainConfig.betas1)
     ap.add_argument("--betas2", type=float, default=TrainConfig.betas2)
     ap.add_argument("--warmup_steps", type=int, default=TrainConfig.warmup_steps)
-    ap.add_argument("--grad_accum_steps", type=int, default=TrainConfig.grad_accum_steps)
+    ap.add_argument(
+        "--grad_accum_steps", type=int, default=TrainConfig.grad_accum_steps
+    )
 
     # LoRA
     ap.add_argument("--lora_r", type=int, default=TrainConfig.lora_r)
     ap.add_argument("--lora_alpha", type=int, default=TrainConfig.lora_alpha)
     ap.add_argument("--lora_dropout", type=float, default=TrainConfig.lora_dropout)
-    ap.add_argument("--lora_target_modules", type=str, default=TrainConfig.lora_target_modules)
+    ap.add_argument(
+        "--lora_target_modules", type=str, default=TrainConfig.lora_target_modules
+    )
     ap.add_argument("--lora_bias", type=str, default=TrainConfig.lora_bias)
 
     # Memory/perf
@@ -85,7 +100,11 @@ def parse_args() -> TrainConfig:
         action=argparse.BooleanOptionalAction,
         default=TrainConfig.rollout_on_cpu,
     )
-    ap.add_argument("--cuda_empty_cache_interval", type=int, default=TrainConfig.cuda_empty_cache_interval)
+    ap.add_argument(
+        "--cuda_empty_cache_interval",
+        type=int,
+        default=TrainConfig.cuda_empty_cache_interval,
+    )
 
     # Logging / eval
     ap.add_argument("--wandb_project", type=str, default=TrainConfig.wandb_project)
@@ -95,18 +114,26 @@ def parse_args() -> TrainConfig:
         action=argparse.BooleanOptionalAction,
         default=TrainConfig.wandb_enabled,
     )
-    ap.add_argument("--sample_log_interval", type=int, default=TrainConfig.sample_log_interval)
+    ap.add_argument(
+        "--sample_log_interval", type=int, default=TrainConfig.sample_log_interval
+    )
     ap.add_argument(
         "--sample_markdown_log_interval",
         type=int,
         default=TrainConfig.sample_markdown_log_interval,
     )
     ap.add_argument("--sample_log_n", type=int, default=TrainConfig.sample_log_n)
-    ap.add_argument("--sample_log_max_chars", type=int, default=TrainConfig.sample_log_max_chars)
+    ap.add_argument(
+        "--sample_log_max_chars", type=int, default=TrainConfig.sample_log_max_chars
+    )
     ap.add_argument("--eval_interval", type=int, default=TrainConfig.eval_interval)
     ap.add_argument("--save_interval", type=int, default=TrainConfig.save_interval)
-    ap.add_argument("--format_copy_eval_n", type=int, default=TrainConfig.format_copy_eval_n)
-    ap.add_argument("--math_hard_eval_n", type=int, default=TrainConfig.math_hard_eval_n)
+    ap.add_argument(
+        "--format_copy_eval_n", type=int, default=TrainConfig.format_copy_eval_n
+    )
+    ap.add_argument(
+        "--math_hard_eval_n", type=int, default=TrainConfig.math_hard_eval_n
+    )
     ap.add_argument("--eval_batch_size", type=int, default=TrainConfig.eval_batch_size)
 
     args = ap.parse_args()
@@ -181,7 +208,9 @@ def build_algo(cfg: TrainConfig):
     return GRPO(acfg)
 
 
-def compute_group_advantages(rewards: torch.Tensor, group_size: int, eps: float = 1e-6) -> torch.Tensor:
+def compute_group_advantages(
+    rewards: torch.Tensor, group_size: int, eps: float = 1e-6
+) -> torch.Tensor:
     # TODO(student): implement group-relative advantage normalization.
     # rewards is a flat vector of length N = batch_size * group_size in prompt-major
     # order, so the group_size sampled completions for the same prompt are contiguous.
@@ -202,19 +231,40 @@ def compute_group_advantages(rewards: torch.Tensor, group_size: int, eps: float 
     #   of your choice for that group
     #
     # Return a flat tensor with the same shape/order as rewards.
-    raise NotImplementedError("student TODO: compute_group_advantages")
+    if rewards.numel() == 0:
+        return rewards
+    if group_size <= 1:
+        return torch.zeros_like(rewards)
+
+    grouped = rewards.view(-1, group_size)
+    group_mean = grouped.mean(dim=1, keepdim=True)
+    group_std = grouped.std(dim=1, keepdim=True, unbiased=False)
+    normalized = (grouped - group_mean) / (group_std + eps)
+    normalized = torch.where(group_std <= eps, torch.zeros_like(normalized), normalized)
+    return normalized.reshape_as(rewards)
 
 
-def maybe_normalize_advantages(advantages: torch.Tensor, enabled: bool, eps: float = 1e-6) -> torch.Tensor:
+def maybe_normalize_advantages(
+    advantages: torch.Tensor, enabled: bool, eps: float = 1e-6
+) -> torch.Tensor:
     # TODO(student): if enabled, z-score normalize the full advantage vector:
     #   A' = (A - mean(A)) / (std(A) + eps)
     # Again use the population standard deviation (unbiased=False).
     # Otherwise return A unchanged.
     # Keep the output shape identical to the input shape.
-    raise NotImplementedError("student TODO: maybe_normalize_advantages")
+    if not enabled or advantages.numel() == 0:
+        return advantages
+    mean = advantages.mean()
+    std = advantages.std(unbiased=False)
+    normalized = (advantages - mean) / (std + eps)
+    if float(std.item()) <= eps:
+        return torch.zeros_like(advantages)
+    return normalized
 
 
-def maybe_update_warmup_lr(optimizer: torch.optim.Optimizer, base_lr: float, step: int, warmup_steps: int) -> None:
+def maybe_update_warmup_lr(
+    optimizer: torch.optim.Optimizer, base_lr: float, step: int, warmup_steps: int
+) -> None:
     if warmup_steps <= 0:
         scale = 1.0
     else:
@@ -259,7 +309,9 @@ def _truncate_text(text: str, max_chars: int) -> str:
 
 
 def _format_prompt(messages: List[Dict[str, str]], max_chars: int) -> str:
-    text = "\n".join(f"{m.get('role', 'unknown')}: {m.get('content', '')}" for m in messages)
+    text = "\n".join(
+        f"{m.get('role', 'unknown')}: {m.get('content', '')}" for m in messages
+    )
     return _truncate_text(text, max_chars=max_chars)
 
 
@@ -302,21 +354,31 @@ def build_rollout_example_rows(
             "training_step_index_zero_based": int(step),
             "task_name_for_this_sample": str(rollout_out.task_names[i]),
             "sample_index_within_logged_rows_for_this_step": int(i),
-            "prompt_group_index_after_prompt_replication": int(i // max(1, cfg.group_size)),
-            "candidate_index_within_group_for_same_prompt": int(i % max(1, cfg.group_size)),
+            "prompt_group_index_after_prompt_replication": int(
+                i // max(1, cfg.group_size)
+            ),
+            "candidate_index_within_group_for_same_prompt": int(
+                i % max(1, cfg.group_size)
+            ),
             "prompt_messages_with_roles_joined_into_single_text": _format_prompt(
                 rollout_out.prompt_messages[i], max_chars=cfg.sample_log_max_chars
             ),
             "question_text_from_task_metadata_if_available": _truncate_text(
                 str(meta.get("question", "")), max_chars=cfg.sample_log_max_chars
             ),
-            "ground_truth_numeric_answer_from_task_metadata_if_available": _to_wandb_cell(gt),
+            "ground_truth_numeric_answer_from_task_metadata_if_available": _to_wandb_cell(
+                gt
+            ),
             "model_completion_text": _truncate_text(
                 str(rollout_out.completion_texts[i]), max_chars=cfg.sample_log_max_chars
             ),
-            "generated_completion_token_count_for_this_sample": int(completion_tokens[i].item()),
+            "generated_completion_token_count_for_this_sample": int(
+                completion_tokens[i].item()
+            ),
             "total_reward_used_for_policy_update_for_this_sample": float(rewards[i]),
-            "advantage_used_for_policy_update_for_this_sample": float(advantages[i].item()),
+            "advantage_used_for_policy_update_for_this_sample": float(
+                advantages[i].item()
+            ),
         }
         for k, v in info.items():
             row[k] = _to_wandb_cell(v)
@@ -403,7 +465,9 @@ def save_checkpoint(
 
 @torch.no_grad()
 def make_generate_fns(model: torch.nn.Module, tokenizer, device: torch.device):
-    def generate_batch(messages_batch: List[List[Dict[str, str]]], max_new_tokens: int = 256) -> List[str]:
+    def generate_batch(
+        messages_batch: List[List[Dict[str, str]]], max_new_tokens: int = 256
+    ) -> List[str]:
         if not messages_batch:
             return []
         model.eval()
@@ -437,7 +501,9 @@ def make_generate_fns(model: torch.nn.Module, tokenizer, device: torch.device):
     def generate(messages: List[Dict[str, str]], max_new_tokens: int = 256) -> str:
         completions = generate_batch([messages], max_new_tokens=max_new_tokens)
         if len(completions) != 1:
-            raise RuntimeError(f"Expected exactly one completion, got {len(completions)}")
+            raise RuntimeError(
+                f"Expected exactly one completion, got {len(completions)}"
+            )
         return completions[0]
 
     return generate, generate_batch
@@ -487,7 +553,9 @@ def main():
     if cfg.warmup_steps < 0:
         raise ValueError(f"warmup_steps must be >= 0, got {cfg.warmup_steps}")
     if cfg.format_copy_eval_n < 0:
-        raise ValueError(f"format_copy_eval_n must be >= 0, got {cfg.format_copy_eval_n}")
+        raise ValueError(
+            f"format_copy_eval_n must be >= 0, got {cfg.format_copy_eval_n}"
+        )
     if cfg.math_hard_eval_n < 0:
         raise ValueError(f"math_hard_eval_n must be >= 0, got {cfg.math_hard_eval_n}")
     if cfg.eval_batch_size <= 0:
@@ -607,7 +675,9 @@ def main():
             )
             progress["last_log"] = now
 
-        def generate_with_progress(messages: List[Dict[str, str]], max_new_tokens: int = 256) -> str:
+        def generate_with_progress(
+            messages: List[Dict[str, str]], max_new_tokens: int = 256
+        ) -> str:
             text = eval_gen_fn(messages, max_new_tokens=max_new_tokens)
             prev_done = int(progress["done"])
             progress["done"] += 1
@@ -641,11 +711,17 @@ def main():
             f"({eval_examples_done / eval_elapsed:.2f} examples/sec)."
         )
         metrics["eval/runtime_seconds_for_last_evaluation_call"] = float(eval_elapsed)
-        metrics["eval/number_of_examples_processed_in_last_evaluation_call"] = float(eval_examples_done)
-        metrics["eval/examples_per_second_in_last_evaluation_call"] = float(eval_examples_done / eval_elapsed)
+        metrics["eval/number_of_examples_processed_in_last_evaluation_call"] = float(
+            eval_examples_done
+        )
+        metrics["eval/examples_per_second_in_last_evaluation_call"] = float(
+            eval_examples_done / eval_elapsed
+        )
         return metrics
 
-    baseline_eval_metrics = run_eval_for_task(eval_step=0, phase="baseline_before_first_rl_update")
+    baseline_eval_metrics = run_eval_for_task(
+        eval_step=0, phase="baseline_before_first_rl_update"
+    )
     logger.log(baseline_eval_metrics, step=0)
     if hasattr(task, "dataset_stats"):
         logger.log(getattr(task, "dataset_stats"), step=0)
@@ -677,7 +753,11 @@ def main():
         reward_infos: List[Dict[str, Any]] = []
         info_accum: Dict[str, float] = {}
         for i, text in enumerate(rollout_out.completion_texts):
-            ex = TaskExample(meta=rollout_out.task_metas[i], messages=[], task_name=rollout_out.task_names[i])
+            ex = TaskExample(
+                meta=rollout_out.task_metas[i],
+                messages=[],
+                task_name=rollout_out.task_names[i],
+            )
             r, info = task.reward(ex, text)
             rewards.append(r)
             reward_infos.append(info)
@@ -686,7 +766,9 @@ def main():
                     continue
                 info_accum[k] = info_accum.get(k, 0.0) + float(v)
 
-        rewards_t = torch.tensor(rewards, dtype=torch.float32, device=rollout_out.input_ids.device)
+        rewards_t = torch.tensor(
+            rewards, dtype=torch.float32, device=rollout_out.input_ids.device
+        )
         adv_t = compute_group_advantages(rewards_t, cfg.group_size)
         adv_t = maybe_normalize_advantages(adv_t, cfg.normalize_advantages)
 
@@ -720,52 +802,93 @@ def main():
         step_seconds = max(1e-6, time.perf_counter() - step_start)
 
         completion_tokens = rollout_out.completion_mask.sum(dim=1).float()
-        prompt_tokens = rollout_out.attention_mask[:, : rollout_out.prompt_input_len].sum(dim=1).float()
+        prompt_tokens = (
+            rollout_out.attention_mask[:, : rollout_out.prompt_input_len]
+            .sum(dim=1)
+            .float()
+        )
         seq_tokens_total = float(rollout_out.attention_mask.sum().item())
-        hit_max_new_tokens_frac = float((completion_tokens >= float(cfg.max_new_tokens)).float().mean().item())
+        hit_max_new_tokens_frac = float(
+            (completion_tokens >= float(cfg.max_new_tokens)).float().mean().item()
+        )
 
         with torch.no_grad():
-            stats["rollout/mean_total_reward_across_all_completions_in_batch_and_groups"] = float(rewards_t.mean().item())
-            stats["rollout/std_total_reward_across_all_completions_in_batch_and_groups"] = float(
-                rewards_t.std(unbiased=False).item()
-            )
+            stats[
+                "rollout/mean_total_reward_across_all_completions_in_batch_and_groups"
+            ] = float(rewards_t.mean().item())
+            stats[
+                "rollout/std_total_reward_across_all_completions_in_batch_and_groups"
+            ] = float(rewards_t.std(unbiased=False).item())
             stats["rollout/fraction_of_completions_with_nonzero_total_reward"] = float(
                 (rewards_t != 0.0).float().mean().item()
             )
-            stats["rollout/mean_advantage_after_group_relative_normalization"] = float(adv_t.mean().item())
-            stats["rollout/std_advantage_after_group_relative_normalization"] = float(adv_t.std(unbiased=False).item())
+            stats["rollout/mean_advantage_after_group_relative_normalization"] = float(
+                adv_t.mean().item()
+            )
+            stats["rollout/std_advantage_after_group_relative_normalization"] = float(
+                adv_t.std(unbiased=False).item()
+            )
             stats["rollout/fraction_of_completions_with_nonzero_advantage"] = float(
                 (adv_t.abs() > 1e-8).float().mean().item()
             )
-            stats["rollout/indicator_all_advantages_are_zero_for_this_step"] = float((adv_t.abs().max() <= 1e-8).item())
-            stats["rollout/mean_generated_completion_token_count_per_completion"] = float(completion_tokens.mean().item())
-            stats["rollout/std_generated_completion_token_count_per_completion"] = float(
-                completion_tokens.std(unbiased=False).item()
+            stats["rollout/indicator_all_advantages_are_zero_for_this_step"] = float(
+                (adv_t.abs().max() <= 1e-8).item()
+            )
+            stats["rollout/mean_generated_completion_token_count_per_completion"] = (
+                float(completion_tokens.mean().item())
+            )
+            stats["rollout/std_generated_completion_token_count_per_completion"] = (
+                float(completion_tokens.std(unbiased=False).item())
             )
             stats["rollout/fraction_of_completions_with_zero_generated_tokens"] = float(
                 (completion_tokens <= 0).float().mean().item()
             )
-            stats["rollout/fraction_of_completions_that_hit_max_new_tokens_limit"] = hit_max_new_tokens_frac
-            stats["rollout/mean_prompt_token_count_per_prompt_after_tokenization"] = float(prompt_tokens.mean().item())
-            stats["rollout/total_nonpadding_token_count_in_rollout_batch_including_prompt_and_completion"] = seq_tokens_total
-            stats["train/current_optimizer_learning_rate"] = float(optimizer.param_groups[0]["lr"])
-            stats["train/wall_clock_seconds_for_this_training_iteration"] = float(step_seconds)
-            stats["train/nonpadding_rollout_tokens_processed_per_second"] = float(seq_tokens_total / step_seconds)
+            stats["rollout/fraction_of_completions_that_hit_max_new_tokens_limit"] = (
+                hit_max_new_tokens_frac
+            )
+            stats["rollout/mean_prompt_token_count_per_prompt_after_tokenization"] = (
+                float(prompt_tokens.mean().item())
+            )
+            stats[
+                "rollout/total_nonpadding_token_count_in_rollout_batch_including_prompt_and_completion"
+            ] = seq_tokens_total
+            stats["train/current_optimizer_learning_rate"] = float(
+                optimizer.param_groups[0]["lr"]
+            )
+            stats["train/wall_clock_seconds_for_this_training_iteration"] = float(
+                step_seconds
+            )
+            stats["train/nonpadding_rollout_tokens_processed_per_second"] = float(
+                seq_tokens_total / step_seconds
+            )
             if torch.cuda.is_available():
-                stats["train/gpu_memory_allocated_gigabytes_current"] = float(torch.cuda.memory_allocated() / (1024**3))
-                stats["train/gpu_memory_reserved_gigabytes_current"] = float(torch.cuda.memory_reserved() / (1024**3))
-                stats["train/gpu_peak_memory_allocated_gigabytes_since_step_start"] = float(
-                    torch.cuda.max_memory_allocated() / (1024**3)
+                stats["train/gpu_memory_allocated_gigabytes_current"] = float(
+                    torch.cuda.memory_allocated() / (1024**3)
                 )
-            stats["model/count_trainable_parameters_lora_only"] = float(loaded.trainable_params)
-            stats["model/count_total_parameters_including_frozen_base_model"] = float(loaded.total_params)
-            stats["train/count_trainable_parameter_tensors_with_nonfinite_values_after_update"] = float(bad_params)
+                stats["train/gpu_memory_reserved_gigabytes_current"] = float(
+                    torch.cuda.memory_reserved() / (1024**3)
+                )
+                stats["train/gpu_peak_memory_allocated_gigabytes_since_step_start"] = (
+                    float(torch.cuda.max_memory_allocated() / (1024**3))
+                )
+            stats["model/count_trainable_parameters_lora_only"] = float(
+                loaded.trainable_params
+            )
+            stats["model/count_total_parameters_including_frozen_base_model"] = float(
+                loaded.total_params
+            )
+            stats[
+                "train/count_trainable_parameter_tensors_with_nonfinite_values_after_update"
+            ] = float(bad_params)
             for k, s in info_accum.items():
                 stats[k] = s / max(1, len(rewards))
 
         logger.log(stats, step=step)
         sample_rows: List[Dict[str, Any]] = []
-        if (cfg.sample_markdown_log_interval > 0 and ((step + 1) % cfg.sample_markdown_log_interval == 0)) or (
+        if (
+            cfg.sample_markdown_log_interval > 0
+            and ((step + 1) % cfg.sample_markdown_log_interval == 0)
+        ) or (
             cfg.sample_log_interval > 0 and ((step + 1) % cfg.sample_log_interval == 0)
         ):
             sample_rows = build_rollout_example_rows(
@@ -777,20 +900,34 @@ def main():
                 completion_tokens=completion_tokens,
                 infos=reward_infos,
             )
-        if sample_rows and cfg.sample_markdown_log_interval > 0 and ((step + 1) % cfg.sample_markdown_log_interval == 0):
+        if (
+            sample_rows
+            and cfg.sample_markdown_log_interval > 0
+            and ((step + 1) % cfg.sample_markdown_log_interval == 0)
+        ):
             logger.log(
                 {
                     "samples/latest_human_readable_prompt_completion_reward_breakdown_markdown": build_rollout_examples_markdown(
                         step=step,
                         rows=sample_rows,
-                        max_chars_per_json_block=max(2000, cfg.sample_log_max_chars * 8),
+                        max_chars_per_json_block=max(
+                            2000, cfg.sample_log_max_chars * 8
+                        ),
                     )
                 },
                 step=step,
             )
-        if sample_rows and cfg.sample_log_interval > 0 and ((step + 1) % cfg.sample_log_interval == 0):
+        if (
+            sample_rows
+            and cfg.sample_log_interval > 0
+            and ((step + 1) % cfg.sample_log_interval == 0)
+        ):
             if sample_rows:
-                logger.log_table(f"samples/{cfg.task}_prompt_completion_reward_breakdown", sample_rows, step=step)
+                logger.log_table(
+                    f"samples/{cfg.task}_prompt_completion_reward_breakdown",
+                    sample_rows,
+                    step=step,
+                )
         pbar.set_postfix(
             {
                 "reward": f"{stats['rollout/mean_total_reward_across_all_completions_in_batch_and_groups']:.3f}",
@@ -800,18 +937,26 @@ def main():
         )
 
         if cfg.eval_interval > 0 and (step + 1) % cfg.eval_interval == 0:
-            eval_metrics = run_eval_for_task(eval_step=step, phase="periodic_during_training")
+            eval_metrics = run_eval_for_task(
+                eval_step=step, phase="periodic_during_training"
+            )
             logger.log(eval_metrics, step=step)
 
         if cfg.save_interval > 0 and (step + 1) % cfg.save_interval == 0:
             save_checkpoint(out_dir, step + 1, model, tokenizer, optimizer, cfg)
 
-        if torch.cuda.is_available() and cfg.cuda_empty_cache_interval > 0 and (step + 1) % cfg.cuda_empty_cache_interval == 0:
+        if (
+            torch.cuda.is_available()
+            and cfg.cuda_empty_cache_interval > 0
+            and (step + 1) % cfg.cuda_empty_cache_interval == 0
+        ):
             gc.collect()
             torch.cuda.empty_cache()
 
     save_checkpoint(out_dir, cfg.steps, model, tokenizer, optimizer, cfg)
-    final_eval_metrics = run_eval_for_task(eval_step=cfg.steps, phase="final_after_last_rl_update")
+    final_eval_metrics = run_eval_for_task(
+        eval_step=cfg.steps, phase="final_after_last_rl_update"
+    )
     logger.log(final_eval_metrics, step=cfg.steps)
     logger.finish()
 

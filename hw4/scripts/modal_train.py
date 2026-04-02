@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import modal
 
-
 APP_NAME = "hw4-llm-rl"
-NETRC_PATH = Path("~/.netrc").expanduser()
+if sys.platform == "win32":
+    NETRC_PATH = Path.home() / "_netrc"
+else:
+    NETRC_PATH = Path("~/.netrc").expanduser()
 PROJECT_DIR = "/root/project"
 VOLUME_PATH = "/vol"
 DEFAULT_GPU = "H100"
@@ -119,7 +122,9 @@ def _is_wandb_enabled_for_train_args(args: tuple[str, ...] | list[str]) -> bool:
     return enabled
 
 
-def _assert_wandb_credentials_available_if_needed(args: tuple[str, ...] | list[str]) -> None:
+def _assert_wandb_credentials_available_if_needed(
+    args: tuple[str, ...] | list[str],
+) -> None:
     if not _is_wandb_enabled_for_train_args(args):
         return
     has_netrc = Path("/root/.netrc").is_file()
@@ -183,7 +188,9 @@ app = modal.App(APP_NAME)
 
 function_secrets = []
 if os.environ.get("WANDB_API_KEY"):
-    function_secrets.append(modal.Secret.from_dict({"WANDB_API_KEY": os.environ["WANDB_API_KEY"]}))
+    function_secrets.append(
+        modal.Secret.from_dict({"WANDB_API_KEY": os.environ["WANDB_API_KEY"]})
+    )
 
 env = {
     "PYTHONPATH": PROJECT_DIR,
@@ -244,7 +251,11 @@ def bundle_submission_remote(*args: str) -> None:
 @app.local_entrypoint()
 def main(*args: str) -> None:
     """Default entrypoint: forward args to train_remote."""
-    if _is_wandb_enabled_for_train_args(args) and not NETRC_PATH.is_file() and not os.environ.get("WANDB_API_KEY"):
+    if (
+        _is_wandb_enabled_for_train_args(args)
+        and not NETRC_PATH.is_file()
+        and not os.environ.get("WANDB_API_KEY")
+    ):
         raise RuntimeError(
             "W&B logging is enabled (default), but no credentials were detected locally. "
             "Run `uvx wandb login` (creates ~/.netrc), or export WANDB_API_KEY before modal run, "

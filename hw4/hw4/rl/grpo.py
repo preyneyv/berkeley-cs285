@@ -96,7 +96,27 @@ class GRPO(RLAlgorithm):
                 #    (do not add an entropy term to the loss)
                 # 10. clipfrac = masked fraction of completion-token positions where
                 #     the PPO ratio was clipped outside [1-clip_eps, 1+clip_eps]
-                raise NotImplementedError("student TODO: GRPO.update minibatch computations")
+                new_logp = compute_per_token_logprobs(
+                    model, mb.input_ids, mb.attention_mask
+                )
+                log_ratio = (new_logp - mb.old_logprobs).clamp(min=-20.0, max=20.0)
+                ratio = torch.exp(log_ratio)
+                adv_tok = adv.unsqueeze(1)
+
+                unclipped = ratio * adv_tok
+                clipped_ratio = ratio.clamp(1.0 - cfg.clip_eps, 1.0 + cfg.clip_eps)
+                clipped = clipped_ratio * adv_tok
+                per_token_obj = torch.minimum(unclipped, clipped) * mask
+                seq_obj = masked_mean_per_row(per_token_obj, mask)
+                pg_loss = -seq_obj.mean()
+
+                kl = approx_kl_from_logprobs(new_logp, mb.ref_logprobs, mask)
+                entropy = -masked_mean(new_logp, mask)
+
+                was_clipped = (
+                    (ratio < (1.0 - cfg.clip_eps)) | (ratio > (1.0 + cfg.clip_eps))
+                ).to(mask.dtype)
+                clipfrac = masked_mean(was_clipped, mask)
 
                 loss = (pg_loss + cfg.kl_coef * kl) / max(1, grad_accum_steps)
                 if not torch.isfinite(loss):
@@ -138,12 +158,20 @@ class GRPO(RLAlgorithm):
 
         denom = max(1, n_mb)
         return {
-            "train/policy_loss_with_kl_penalty_mean_over_minibatches": total_loss / denom,
-            "train/approximate_kl_divergence_policy_vs_reference_mean_over_minibatches": total_kl / denom,
+            "train/policy_loss_with_kl_penalty_mean_over_minibatches": total_loss
+            / denom,
+            "train/approximate_kl_divergence_policy_vs_reference_mean_over_minibatches": total_kl
+            / denom,
             "train/policy_token_entropy_mean_over_minibatches": total_entropy / denom,
-            "train/fraction_of_completion_tokens_where_ppo_ratio_was_clipped_mean_over_minibatches": total_clipfrac / denom,
-            "train/count_minibatches_skipped_because_completion_mask_had_no_tokens": float(skipped_empty),
-            "train/count_update_attempts_skipped_due_to_nonfinite_loss_or_gradients": float(skipped_nonfinite),
-            "train/gradient_global_norm_after_clipping_mean_over_optimizer_steps": total_grad_norm / max(1, opt_steps),
+            "train/fraction_of_completion_tokens_where_ppo_ratio_was_clipped_mean_over_minibatches": total_clipfrac
+            / denom,
+            "train/count_minibatches_skipped_because_completion_mask_had_no_tokens": float(
+                skipped_empty
+            ),
+            "train/count_update_attempts_skipped_due_to_nonfinite_loss_or_gradients": float(
+                skipped_nonfinite
+            ),
+            "train/gradient_global_norm_after_clipping_mean_over_optimizer_steps": total_grad_norm
+            / max(1, opt_steps),
             "train/count_optimizer_steps_per_training_iteration": float(opt_steps),
         }

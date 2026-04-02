@@ -1,0 +1,15 @@
+ppo_epochs=2, minibatch_size=8, grad_accum_steps=6, clip_eps=0.2, kl_coef=0.05
+Ablation: change ppo_epochs to 1 (less sample reuse)
+uvx modal run --detach scripts/modal_train.py -- --task format_copy --algo grpo --output_dir /vol/runs/modal_format_copy_grpo_ablate_epochs1 --steps 51 --batch_size 8 --group_size 6 --min_new_tokens 1 --max_new_tokens 24 --lr 3e-5 --ppo_epochs 1 --minibatch_size 8 --grad_accum_steps 6 --clip_eps 0.2 --kl_coef 0.05 --max_grad_norm 0.5 --wandb_enabled --wandb_project llm-rl-hw4 --wandb_name format_copy_grpo_ablate_epochs1 --sample_markdown_log_interval 1 --sample_log_interval 10 --sample_log_n 6 --eval_interval 50 --save_interval 50 --warmup_steps 10
+
+Ablation: smaller KL penalty (kl_coef 0.05 -> 0.01)
+uvx modal run --detach scripts/modal_train.py -- --task format_copy --algo grpo --output_dir /vol/runs/modal_format_copy_grpo_ablate_kl001 --steps 51 --batch_size 8 --group_size 6 --min_new_tokens 1 --max_new_tokens 24 --lr 3e-5 --ppo_epochs 2 --minibatch_size 8 --grad_accum_steps 6 --clip_eps 0.2 --kl_coef 0.01 --max_grad_norm 0.5 --wandb_enabled --wandb_project llm-rl-hw4 --wandb_name format_copy_grpo_ablate_kl001 --sample_markdown_log_interval 1 --sample_log_interval 10 --sample_log_n 6 --eval_interval 50 --save_interval 50 --warmup_steps 10
+
+Ablation: larger KL penalty (kl_coef 0.05 -> 0.2)
+uvx modal run --detach scripts/modal_train.py -- --task format_copy --algo grpo --output_dir /vol/runs/modal_format_copy_grpo_ablate_kl020 --steps 51 --batch_size 8 --group_size 6 --min_new_tokens 1 --max_new_tokens 24 --lr 3e-5 --ppo_epochs 2 --minibatch_size 8 --grad_accum_steps 6 --clip_eps 0.2 --kl_coef 0.2 --max_grad_norm 0.5 --wandb_enabled --wandb_project llm-rl-hw4 --wandb_name format_copy_grpo_ablate_kl020 --sample_markdown_log_interval 1 --sample_log_interval 10 --sample_log_n 6 --eval_interval 50 --save_interval 50 --warmup_steps 10
+
+Ablation: tighter PPO clipping (clip_eps 0.2 -> 0.1)
+uvx modal run --detach scripts/modal_train.py -- --task format_copy --algo grpo --output_dir /vol/runs/modal_format_copy_grpo_ablate_clip010 --steps 51 --batch_size 8 --group_size 6 --min_new_tokens 1 --max_new_tokens 24 --lr 3e-5 --ppo_epochs 2 --minibatch_size 8 --grad_accum_steps 6 --clip_eps 0.1 --kl_coef 0.05 --max_grad_norm 0.5 --wandb_enabled --wandb_project llm-rl-hw4 --wandb_name format_copy_grpo_ablate_clip010 --sample_markdown_log_interval 1 --sample_log_interval 10 --sample_log_n 6 --eval_interval 50 --save_interval 50 --warmup_steps 10
+
+Ablation: grad_accum_steps=1, with minibatch adjusted in tandem (8 -> 48)
+uvx modal run --detach scripts/modal_train.py -- --task format_copy --algo grpo --output_dir /vol/runs/modal_format_copy_grpo_ablate_ga1_mb48 --steps 51 --batch_size 8 --group_size 6 --min_new_tokens 1 --max_new_tokens 24 --lr 3e-5 --ppo_epochs 2 --minibatch_size 48 --grad_accum_steps 1 --clip_eps 0.2 --kl_coef 0.05 --max_grad_norm 0.5 --wandb_enabled --wandb_project llm-rl-hw4 --wandb_name format_copy_grpo_ablate_ga1_mb48 --sample_markdown_log_interval 1 --sample_log_interval 10 --sample_log_n 6 --eval_interval 50 --save_interval 50 --warmup_steps 10
