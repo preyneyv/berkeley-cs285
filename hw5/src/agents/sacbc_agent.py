@@ -1,9 +1,9 @@
+from typing import Sequence
+
+import infrastructure.pytorch_util as ptu
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
-import infrastructure.pytorch_util as ptu
-
-from typing import Sequence
 
 
 class SACBCAgent(nn.Module):
@@ -11,14 +11,12 @@ class SACBCAgent(nn.Module):
         self,
         observation_shape: Sequence[int],
         action_dim: int,
-
         make_actor,
         make_actor_optimizer,
         make_critic,
         make_critic_optimizer,
         make_beta,
         make_beta_optimizer,
-
         discount: float,
         target_update_rate: float,
         alpha: float,
@@ -39,7 +37,9 @@ class SACBCAgent(nn.Module):
         self.target_update_rate = target_update_rate
         self.alpha = alpha
 
-        self.target_entropy = -action_dim / 2  # Heuristic value (|A| / 2) from the SAC paper.
+        self.target_entropy = (
+            -action_dim / 2
+        )  # Heuristic value (|A| / 2) from the SAC paper.
 
     def get_action(self, observation: np.ndarray):
         """
@@ -148,7 +148,9 @@ class SACBCAgent(nn.Module):
         dones: torch.Tensor,
         step: int,
     ):
-        metrics_q = self.update_q(observations, actions, rewards, next_observations, dones)
+        metrics_q = self.update_q(
+            observations, actions, rewards, next_observations, dones
+        )
         metrics_actor = self.update_actor(observations, actions)
         metrics_beta = self.update_beta(observations)
         metrics = {
@@ -162,7 +164,9 @@ class SACBCAgent(nn.Module):
         return metrics
 
     def update_target_critic(self) -> None:
-        for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
+        for target_param, param in zip(
+            self.target_critic.parameters(), self.critic.parameters()
+        ):
             target_param.data.copy_(
                 target_param.data * (1 - self.target_update_rate)
                 + param.data * self.target_update_rate

@@ -1,9 +1,9 @@
+from typing import Sequence
+
+import infrastructure.pytorch_util as ptu
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
-import infrastructure.pytorch_util as ptu
-
-from typing import Sequence
 
 
 class FQLAgent(nn.Module):
@@ -11,14 +11,12 @@ class FQLAgent(nn.Module):
         self,
         observation_shape: Sequence[int],
         action_dim: int,
-
         make_bc_actor,
         make_bc_actor_optimizer,
         make_onestep_actor,
         make_onestep_actor_optimizer,
         make_critic,
         make_critic_optimizer,
-
         discount: float,
         target_update_rate: float,
         flow_steps: int,
@@ -35,7 +33,9 @@ class FQLAgent(nn.Module):
         self.target_critic.load_state_dict(self.critic.state_dict())
 
         self.bc_actor_optimizer = make_bc_actor_optimizer(self.bc_actor.parameters())
-        self.onestep_actor_optimizer = make_onestep_actor_optimizer(self.onestep_actor.parameters())
+        self.onestep_actor_optimizer = make_onestep_actor_optimizer(
+            self.onestep_actor.parameters()
+        )
         self.critic_optimizer = make_critic_optimizer(self.critic.parameters())
 
         self.discount = discount
@@ -170,13 +170,17 @@ class FQLAgent(nn.Module):
         dones: torch.Tensor,
         step: int,
     ):
-        metrics_q = self.update_q(observations, actions, rewards, next_observations, dones)
+        metrics_q = self.update_q(
+            observations, actions, rewards, next_observations, dones
+        )
         metrics_bc_actor = self.update_bc_actor(observations, actions)
         metrics_onestep_actor = self.update_onestep_actor(observations, actions)
         metrics = {
             **{f"critic/{k}": v.item() for k, v in metrics_q.items()},
             **{f"bc_actor/{k}": v.item() for k, v in metrics_bc_actor.items()},
-            **{f"onestep_actor/{k}": v.item() for k, v in metrics_onestep_actor.items()},
+            **{
+                f"onestep_actor/{k}": v.item() for k, v in metrics_onestep_actor.items()
+            },
         }
 
         self.update_target_critic()
@@ -184,7 +188,9 @@ class FQLAgent(nn.Module):
         return metrics
 
     def update_target_critic(self) -> None:
-        for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
+        for target_param, param in zip(
+            self.target_critic.parameters(), self.critic.parameters()
+        ):
             target_param.data.copy_(
                 target_param.data * (1 - self.target_update_rate)
                 + param.data * self.target_update_rate

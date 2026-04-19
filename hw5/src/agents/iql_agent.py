@@ -1,9 +1,9 @@
+from typing import Sequence
+
+import infrastructure.pytorch_util as ptu
+import numpy as np
 import torch
 from torch import nn
-import numpy as np
-import infrastructure.pytorch_util as ptu
-
-from typing import Sequence
 
 
 class IQLAgent(nn.Module):
@@ -11,14 +11,12 @@ class IQLAgent(nn.Module):
         self,
         observation_shape: Sequence[int],
         action_dim: int,
-
         make_actor,
         make_actor_optimizer,
         make_critic,
         make_critic_optimizer,
         make_value,
         make_value_optimizer,
-
         discount: float,
         target_update_rate: float,
         alpha: float,
@@ -52,13 +50,14 @@ class IQLAgent(nn.Module):
 
     @staticmethod
     def iql_expectile_loss(
-        adv: torch.Tensor, expectile: float,
+        adv: torch.Tensor,
+        expectile: float,
     ) -> torch.Tensor:
         """
         Compute the expectile loss for IQL
         """
         weights = torch.where(adv > 0, expectile, 1 - expectile)
-        return weights * (adv ** 2)
+        return weights * (adv**2)
 
     @torch.compile
     def update_v(
@@ -156,7 +155,9 @@ class IQLAgent(nn.Module):
         step: int,
     ):
         metrics_v = self.update_v(observations, actions)
-        metrics_q = self.update_q(observations, actions, rewards, next_observations, dones)
+        metrics_q = self.update_q(
+            observations, actions, rewards, next_observations, dones
+        )
         metrics_actor = self.update_actor(observations, actions)
         metrics = {
             **{f"value/{k}": v.item() for k, v in metrics_v.items()},
@@ -169,7 +170,9 @@ class IQLAgent(nn.Module):
         return metrics
 
     def update_target_critic(self) -> None:
-        for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
+        for target_param, param in zip(
+            self.target_critic.parameters(), self.critic.parameters()
+        ):
             target_param.data.copy_(
                 target_param.data * (1 - self.target_update_rate)
                 + param.data * self.target_update_rate
