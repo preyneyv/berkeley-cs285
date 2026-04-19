@@ -1,10 +1,9 @@
-from typing import Optional
 import torch
 from torch import nn
 import numpy as np
 import infrastructure.pytorch_util as ptu
 
-from typing import Callable, Optional, Sequence, Tuple, List
+from typing import Sequence
 
 
 class SACBCAgent(nn.Module):
@@ -63,9 +62,14 @@ class SACBCAgent(nn.Module):
         """
         Update Q(s, a)
         """
-        # TODO(student): Compute the Q loss
-        q = ...
-        loss = ...
+        with torch.no_grad():
+            next_action_dists = self.actor(next_observations)
+            next_actions = next_action_dists.rsample()
+            next_q = self.target_critic(next_observations, next_actions).mean(dim=0)
+            target_q = rewards + self.discount * (1 - dones.float()) * next_q
+
+        q = self.critic(observations, actions)
+        loss = ((q - target_q.unsqueeze(0)) ** 2).mean()
 
         self.critic_optimizer.zero_grad()
         loss.backward()
@@ -87,13 +91,16 @@ class SACBCAgent(nn.Module):
         """
         Update the actor
         """
-        # TODO(student): Compute the actor loss
-        q_loss = ...
+        actor_dists = self.actor(observations)
+        actor_actions = actor_dists.rsample()
+        log_probs = actor_dists.log_prob(actor_actions)
+        q = self.critic(observations, actor_actions)
+        q_loss = -q.mean(dim=0).mean()
 
-        mses = ...
-        bc_loss = ...
+        mses = ((actions - actor_actions) ** 2).mean(dim=-1)
+        bc_loss = self.alpha * mses.mean()
 
-        entropy_loss = ...
+        entropy_loss = self.beta().detach() * log_probs.mean()
 
         loss = q_loss + bc_loss + entropy_loss
 
@@ -155,5 +162,8 @@ class SACBCAgent(nn.Module):
         return metrics
 
     def update_target_critic(self) -> None:
-        # TODO(student): Update target_critic using Polyak averaging with self.target_update_rate
-        ...
+        for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
+            target_param.data.copy_(
+                target_param.data * (1 - self.target_update_rate)
+                + param.data * self.target_update_rate
+            )

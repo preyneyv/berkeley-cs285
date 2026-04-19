@@ -1,1 +1,5 @@
 *.zip
+exp
+*.pyc
+__pycache__/
+*.egg-info/

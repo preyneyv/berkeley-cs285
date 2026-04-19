@@ -1,14 +1,17 @@
-import time
 import argparse
+import sys
+import time
 from pathlib import Path
 
 import modal
 
 from scripts.run import main, setup_arguments
 
-
 APP_NAME = "hw5-offline-rl"
-NETRC_PATH = Path("~/.netrc").expanduser()
+if sys.platform == "win32":
+    NETRC_PATH = Path.home() / "_netrc"
+else:
+    NETRC_PATH = Path("~/.netrc").expanduser()
 PROJECT_DIR = "/root/project"
 VOLUME_PATH = "/root/exp"
 DEFAULT_GPU = "T4"
@@ -45,7 +48,9 @@ def load_gitignore_patterns() -> list[str]:
 # Build a container image with the project's dependencies using uv.
 image = modal.Image.debian_slim().apt_install("libgl1", "libglib2.0-0").uv_sync()
 # Download OGBench datasets.
-image = image.run_commands("python -c \"import ogbench;ogbench.download_datasets(['cube-single-play-v0', 'antsoccer-arena-navigate-v0', 'antmaze-medium-navigate-v0'])\"")
+image = image.run_commands(
+    "python -c \"import ogbench;ogbench.download_datasets(['cube-single-play-v0', 'antsoccer-arena-navigate-v0', 'antmaze-medium-navigate-v0'])\""
+)
 # Copy .netrc for wandb logging.
 if NETRC_PATH.is_file():
     image = image.add_local_file(
@@ -66,12 +71,21 @@ env = {
 }
 
 
-@app.function(volumes={VOLUME_PATH: volume}, timeout=60 * 60 * 12, env=env, image=image, gpu=DEFAULT_GPU, cpu=DEFAULT_CPU, memory=DEFAULT_MEMORY)
+@app.function(
+    volumes={VOLUME_PATH: volume},
+    timeout=60 * 60 * 12,
+    env=env,
+    image=image,
+    gpu=DEFAULT_GPU,
+    cpu=DEFAULT_CPU,
+    memory=DEFAULT_MEMORY,
+)
 def hw5_modal_remote(*args: str) -> None:
     args = setup_arguments(args)
     if args.njobs is not None and len(args.job_specs) > 0:
         # Run n jobs in parallel
         from scripts.run_njobs import main_njobs
+
         main_njobs(job_specs=args.job_specs, njobs=args.njobs)
     else:
         # Run a single job
